@@ -30,8 +30,7 @@ Chat server listening on ws://0.0.0.0:8765
 Open `client.html` in a browser. Enter a name and a room, leave the server field as
 `ws://localhost:8765` (default), and click **Join**.
 
-Open it in a few more browser tabs (or send it to friends on your network,
-using your machine's LAN IP instead of `localhost`) to chat with multiple
+Open it in a few more browser tabs to chat with multiple
 people at once — each tab/person can pick any name and room.
 
 ## Notes
