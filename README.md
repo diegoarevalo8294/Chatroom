@@ -1,7 +1,7 @@
-# Real-Time Chat App
+# Real-Time Chatroom App
 
-A minimal real-time chat app: an async Python WebSocket server (`server.py`)
-plus a single-file HTML/JS client (`client.html`) with no build step.
+A real-time chatroom app coded in Python WebSocket server (`server.py`)
+plus a single-file HTML/JS client (`client.html`).
 
 **Features**
 - Real-time messaging over WebSockets
@@ -27,8 +27,7 @@ Chat server listening on ws://0.0.0.0:8765
 
 ## Using it
 
-Open `client.html` in a browser (just double-click it, or `open client.html` /
-`start client.html`). Enter a name and a room, leave the server field as
+Open `client.html` in a browser. Enter a name and a room, leave the server field as
 `ws://localhost:8765` (default), and click **Join**.
 
 Open it in a few more browser tabs (or send it to friends on your network,
