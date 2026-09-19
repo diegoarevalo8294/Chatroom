@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Real-Time Chat</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e222b;
+    --border: #2a2f3a;
+    --text: #e6e8ec;
+    --muted: #8b93a3;
+    --accent: #5b8cff;
+    --accent-2: #3a63d1;
+    --me-bubble: #2a4dbf;
+    --other-bubble: #232735;
+    --system: #6f7788;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+  }
+
+  /* ---------- Login screen ---------- */
+  #login-screen {
+    margin: auto;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    width: 320px;
+    text-align: center;
+  }
+  #login-screen h1 { font-size: 20px; margin: 0 0 20px; }
+  #login-screen input, #login-screen button {
+    width: 100%;
+    padding: 10px 12px;
+    margin-top: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: 14px;
+  }
+  #login-screen input {
+    background: var(--panel-2);
+    color: var(--text);
+  }
+  #login-screen button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  #login-screen button:hover { background: var(--accent-2); }
+  #login-error { color: #ff6b6b; font-size: 12px; margin-top: 10px; min-height: 14px; }
+
+  /* ---------- Chat screen ---------- */
+  #app { display: none; width: 100%; height: 100%; }
+  #app.active { display: flex; }
+
+  #sidebar {
+    width: 210px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  #sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  #sidebar-header .room-name { font-weight: 700; font-size: 15px; }
+  #sidebar-header .status { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  #status-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: #f39c12; margin-right: 6px;
+  }
+  #status-dot.online { background: #2ecc71; }
+  #status-dot.offline { background: #e74c3c; }
+
+  #user-list { flex: 1; overflow-y: auto; padding: 8px; }
+  #user-list .label { font-size: 11px; text-transform: uppercase; color: var(--muted); padding: 8px 8px 4px; letter-spacing: .05em; }
+  .user-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px; border-radius: 6px; font-size: 13px;
+  }
+  .user-item .dot { width: 7px; height: 7px; border-radius: 50%; background: #2ecc71; }
+  .user-item.me { color: var(--accent); font-weight: 600; }
+
+  #leave-btn {
+    margin: 8px; padding: 8px; border-radius: 8px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); cursor: pointer; font-size: 12px;
+  }
+  #leave-btn:hover { color: var(--text); border-color: var(--muted); }
+
+  #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .msg-row { display: flex; flex-direction: column; max-width: 65%; }
+  .msg-row.me { align-self: flex-end; align-items: flex-end; }
+  .msg-row.other { align-self: flex-start; align-items: flex-start; }
+
+  .msg-meta { font-size: 11px; color: var(--muted); margin-bottom: 3px; padding: 0 4px; }
+  .msg-bubble {
+    padding: 9px 13px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.4;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+  }
+  .msg-row.me .msg-bubble { background: var(--me-bubble); color: white; border-bottom-right-radius: 4px; }
+  .msg-row.other .msg-bubble { background: var(--other-bubble); border-bottom-left-radius: 4px; }
+
+  .system-msg {
+    align-self: center;
+    color: var(--system);
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+
+  #typing-indicator {
+    min-height: 20px;
+    padding: 0 20px 4px;
+    font-size: 12px;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  #input-bar {
+    display: flex;
+    gap: 8px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+  }
+  #msg-input {
+    flex: 1;
+    padding: 11px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+  }
+  #msg-input:focus { border-color: var(--accent); }
+  #send-btn {
+    padding: 0 20px;
+    border-radius: 20px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #send-btn:hover { background: var(--accent-2); }
+  #send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+  <!-- Login -->
+  <div id="login-screen">
+    <h1>💬 Join Chat</h1>
+    <input id="username-input" type="text" placeholder="Your name" maxlength="32" autocomplete="off">
+    <input id="room-input" type="text" placeholder="Room (default: general)" maxlength="32" autocomplete="off">
+    <input id="server-input" type="text" placeholder="ws://localhost:8765" value="ws://localhost:8765">
+    <button id="join-btn">Join</button>
+    <div id="login-error"></div>
+  </div>
+
+  <!-- Chat -->
+  <div id="app">
+    <div id="sidebar">
+      <div id="sidebar-header">
+        <div class="room-name" id="room-title">#general</div>
+        <div class="status"><span id="status-dot"></span><span id="status-text">connecting…</span></div>
+      </div>
+      <div id="user-list"></div>
+      <button id="leave-btn">← Leave room</button>
+    </div>
+    <div id="main">
+      <div id="messages"></div>
+      <div id="typing-indicator"></div>
+      <div id="input-bar">
+        <input id="msg-input" type="text" placeholder="Type a message…" autocomplete="off" disabled>
+        <button id="send-btn" disabled>Send</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const loginScreen = document.getElementById('login-screen');
+  const app = document.getElementById('app');
+  const usernameInput = document.getElementById('username-input');
+  const roomInput = document.getElementById('room-input');
+  const serverInput = document.getElementById('server-input');
+  const joinBtn = document.getElementById('join-btn');
+  const loginError = document.getElementById('login-error');
+
+  const messagesEl = document.getElementById('messages');
+  const userListEl = document.getElementById('user-list');
+  const roomTitle = document.getElementById('room-title');
+  const statusDot = document.getElementById('status-dot');
+  const statusText = document.getElementById('status-text');
+  const msgInput = document.getElementById('msg-input');
+  const sendBtn = document.getElementById('send-btn');
+  const leaveBtn = document.getElementById('leave-btn');
+  const typingIndicator = document.getElementById('typing-indicator');
+
+  let ws = null;
+  let myUsername = '';
+  let myRoom = '';
+  let typingTimeout = null;
+  let lastTypingSent = 0;
+  const typingUsers = new Set();
+  let typingClearTimers = {};
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function formatTime(iso) {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch { return ''; }
+  }
+
+  function scrollToBottom() {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function addMessage(username, text, ts) {
+    const row = document.createElement('div');
+    const mine = username === myUsername;
+    row.className = 'msg-row ' + (mine ? 'me' : 'other');
+
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    meta.textContent = (mine ? 'You' : username) + (ts ? ' · ' + formatTime(ts) : '');
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble.textContent = text;
+
+    row.appendChild(meta);
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+    scrollToBottom();
+  }
+
+  function addSystemMessage(text) {
+    const el = document.createElement('div');
+    el.className = 'system-msg';
+    el.textContent = text;
+    messagesEl.appendChild(el);
+    scrollToBottom();
+  }
+
+  function renderUserList(users) {
+    userListEl.innerHTML = '<div class="label">Online — ' + users.length + '</div>';
+    users.forEach(u => {
+      const item = document.createElement('div');
+      item.className = 'user-item' + (u === myUsername ? ' me' : '');
+      item.innerHTML = '<span class="dot"></span><span></span>';
+      item.querySelector('span:last-child').textContent = u === myUsername ? u + ' (you)' : u;
+      userListEl.appendChild(item);
+    });
+  }
+
+  function updateTypingIndicator() {
+    const names = [...typingUsers];
+    if (names.length === 0) {
+      typingIndicator.textContent = '';
+    } else if (names.length === 1) {
+      typingIndicator.textContent = names[0] + ' is typing…';
+    } else {
+      typingIndicator.textContent = names.join(', ') + ' are typing…';
+    }
+  }
+
+  function setConnectionStatus(state) {
+    statusDot.className = state;
+    statusText.textContent = state === 'online' ? 'online'
+      : state === 'offline' ? 'disconnected'
+      : 'connecting…';
+    msgInput.disabled = state !== 'online';
+    sendBtn.disabled = state !== 'online';
+  }
+
+  function connect(serverUrl, username, room) {
+    ws = new WebSocket(serverUrl);
+    setConnectionStatus('connecting');
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'join', username, room }));
+    };
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+
+      switch (msg.type) {
+        case 'joined':
+          myUsername = msg.username;
+          myRoom = msg.room;
+          loginScreen.style.display = 'none';
+          app.classList.add('active');
+          roomTitle.textContent = '#' + myRoom;
+          setConnectionStatus('online');
+          renderUserList(msg.users);
+          messagesEl.innerHTML = '';
+          (msg.history || []).forEach(m => addMessage(m.username, m.text, m.ts));
+          addSystemMessage('You joined #' + myRoom + ' as ' + myUsername);
+          break;
+
+        case 'message':
+          typingUsers.delete(msg.username);
+          updateTypingIndicator();
+          addMessage(msg.username, msg.text, msg.ts);
+          break;
+
+        case 'system':
+          addSystemMessage(msg.text);
+          if (msg.users) renderUserList(msg.users);
+          break;
+
+        case 'typing':
+          typingUsers.add(msg.username);
+          updateTypingIndicator();
+          clearTimeout(typingClearTimers[msg.username]);
+          typingClearTimers[msg.username] = setTimeout(() => {
+            typingUsers.delete(msg.username);
+            updateTypingIndicator();
+          }, 3000);
+          break;
+
+        case 'error':
+          loginError.textContent = msg.text;
+          break;
+      }
+    };
+
+    ws.onclose = () => {
+      setConnectionStatus('offline');
+      addSystemMessage('Disconnected from server.');
+    };
+
+    ws.onerror = () => {
+      loginError.textContent = 'Could not connect to ' + serverUrl;
+    };
+  }
+
+  joinBtn.addEventListener('click', () => {
+    const username = usernameInput.value.trim();
+    const room = roomInput.value.trim() || 'general';
+    const server = serverInput.value.trim();
+    if (!username) {
+      loginError.textContent = 'Please enter a name.';
+      return;
+    }
+    loginError.textContent = '';
+    connect(server, username, room);
+  });
+
+  [usernameInput, roomInput].forEach(el => {
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') joinBtn.click(); });
+  });
+
+  function sendMessage() {
+    const text = msgInput.value.trim();
+    if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'message', text }));
+    msgInput.value = '';
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+  msgInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      sendMessage();
+    } else {
+      const now = Date.now();
+      if (now - lastTypingSent > 1500 && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'typing' }));
+        lastTypingSent = now;
+      }
+    }
+  });
+
+  leaveBtn.addEventListener('click', () => {
+    if (ws) ws.close();
+    app.classList.remove('active');
+    loginScreen.style.display = 'block';
+    messagesEl.innerHTML = '';
+    userListEl.innerHTML = '';
+    typingUsers.clear();
+  });
+})();
+</script>
+</body>
+</html>
